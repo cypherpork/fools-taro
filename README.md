@@ -4,7 +4,7 @@
 
 *... is the number 0 of the Major Arcana, which stands for the number of unlimited potentials. To see the Fool tarot card generally indicates that you are on the verge of an unexpected and exciting new adventure. This may require you to take a blind leap of faith.*
 
-It has been a few weeks since Roasbeef had published the original Taro specifications, and I'm getting questions from friends and colleagues, knowing that I am doing work in adjacent areas. I made this write-up in response to these questions. It is an attempt at a simplified explanation that will hopefully help digest complex details given in the original bip-taro. I was using this: https://www.mail-archive.com/bitcoin-dev@lists.linuxfoundation.org/msg11221.html and the links inside as a source of knowledge on the subject.
+It has been a few weeks since Roasbeef had published the original Taro specifications, and I'm getting questions from friends and colleagues, knowing that I am doing work in adjacent areas. I made this write-up in response to these questions. It is an attempt at a simplified explanation that will hopefully help digest complex details given in the original bip-taro. I was using this: https://www.mail-archive.com/bitcoin-dev@lists.linuxfoundation.org/msg11209.html and the links inside as a source of knowledge on the subject.
 
 \clearpage
 
@@ -97,16 +97,24 @@ To prove nonexistence, one needs to verify the order of elements in an MS-SMT, a
 
 In our context, *more than one record* can mean a collection of different UTxOs of a single time slice of a Taro-tracked asset.  Also, *more than one record* can mean various database states over time.  Imagine a higher-level tree that combines time-related records and UTxOs. And add a map to it - the map will tell you where to find what in such a tree.  The map could be a flat file, a napkin drawing, or something else.  Now you can imagine why they call such a tree, overarching space and time, a "Universe."
 
-There is another essential function that the Universe is playing in the system.  Remember that Merkle trees, being MS-SMTs or not, are very secretive.  Unless you have a Universe map: and know *where* (in which Bitcoin output) and *how* (what is the Merkle path) to look for an anchor of a transaction, you will not find it. 
+There is another essential function that the Universe is playing in the system. Remember that Merkle trees, being MS-SMTs or not, are very secretive. Unless one has a Universe map and knows *where* (in which Bitcoin output) and *how* (what is the Merkle path) to look for an anchor of a transaction, you will not find it. 
 
-To show how important this is, let's expand our earlier example of AliceCoin and add Caroll to the pool of addresses along with Alice and Bob.  There can be a situation that we will not be able to deal with unless we have a map.  Alice can cheat by sending the one and only coin twice (creating a double spend).  She can put two transactions – one to Bob, one to Caroll – into two separate Bitcoin outputs, and there is no way to find out.  Taro resolves this in the Universe.  Among other things, AliceCoin Universe is the one place where everyone should refer to make sure their transaction is registered and does not break the Universe's rules.  Along with address and amount, as we had in our earlier example, each leaf has a record of an ID of preceding UTxO.  Additionally, UTxO contains the recipe that will tell both Bob and Caroll how to interact with the AliceCoin Universe and what needs to be done to ensure their transaction is unique. 
+## Double Spend
+
+Let us expand our earlier example of AliceCoin and add Carol to the pool of addresses along with Alice and Bob. Alice can try to cheat by creating a double spend: sending her one-and-only AliceCoin twice. She can try to create two transactions – one sending it to Bob and one to Carol and stick them into two separate Bitcoin outputs. 
+
+Taro deals with it by having another protocol-wide rule: one cannot send any Taro assets to anyone unless they own the Bitcoin output that commits to the asset UTxO that they are sending. So, if Alice sends her AliceCoin to Bob, she does it along with a tiny amount of Bitcoin, which she sends along to Bob. Bob sees the new legit and confirms Bitcoin UTxO is spendable by his key. He can also trace this UTxO back. Since Alice told Bob there is a Taro transaction packed inside, he can trace AliceCoin back. If Alice tries to send the same coin again, she will not be able to do it because Bob now owns the AliceCoin UTxO. 
+
+Let us make AliceCoin more complex: now it is splittable. If Alice wants to send 0.8 AliceCoin to Bob and 0.2 to Carol, she will use another feature of Taro: a split. She will split her coin into two leaves, one for Bob and one for Carol, and then send them appropriately. For a reverse operation of merging the Taro asset records (and many other good reasons), each Taro asset leaf has a record of an ID of preceding UTxO. 
+
+## How Universe Helps Bob (and when he is on his own)
+
+Alice does not have to tell people about AliceCoin rules for each transaction. She can choose to use AliceCoin Universe as the one place where everyone should refer to make sure their transaction is registered and does not break the rules. Each AliceCoin UTxO will contain the recipe that will tell Bob and Carol how to interact with the AliceCoin Universe. Still, it is the responsibility of Alice, Carol, and Bob to validate the rules. Miners will create secure and immutable records, but they will not validate the rules that Alice dreamt for AliceCoin. *Client-side validation* by Alice, Bob, and Carol has to be utilized. That should not come as a shock: when new USDT is recorded on Omni, Bitcoin miners do not enforce the USDT rules, like calling the bank and checking the USDT peg deposits. ;)
 
 ## What It Is and What It Is Not
 
-Taro is a very compact way to anchor data in the Bitcoin chain, inheriting Bitcoin's security without putting extra stress on the Layer 1 blockchain.  Lightning Labs will include Taro APIs in *lnd*. 
+Taro is a compact way to anchor data in the Bitcoin chain, inheriting Bitcoin's security without putting extra stress on the Layer 1 blockchain. Now, one may ask – didn't we say that there is a rule that enforces a 1:1 relationship that ties a Taro asset changing hands to a Bitcoin transaction? We would say – yes, but there is a saving grace: Taro MS-SMT fits nicely into the Lightning Network paradigm. Lightning Labs will include Taro APIs in *lnd*, which means almost a whole Taro asset Universe can be raised into Layer 2 (except for genesis trees, of course).
 
-An important thing to keep in mind: Taro will not be storing your data and maps for you.  Also, it will not validate your rules – for example, you must figure out who must be responsible for not allowing a double-spend like the one shown in +@fig:err. 
-
-The most obvious candidates to bear this responsibility are transaction participants - that is *client-side validation*.  Alternatively, such verification is provided by a trusted third party.
+**An important thing to keep in mind:** Taro will not be storing data and maps and will not validate rules. We have already mentioned the role of the *client-side validation* here: the most obvious candidates to bear these responsibilities are the transaction participants. Alternatively, these responsibilities could be delegated to a trusted third party.
 
 [^1]: You will not add data at all if you combine your data with some other legit transaction. But usually one would create a dedicated taproot transaction for that.
